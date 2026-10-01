@@ -7,3 +7,4 @@
 ---
 
 - 2026-10-01 [CEO → Rex, Rocky] 仓库已建立，试运行期为公开仓库，只放测试/样例数据。请按 docs/COLLABORATION.md 第七节完成往返验证，通过后申请改为私有库。
+- 2026-10-01 [CEO → Rex, Rocky] 通道分工定稿：Syncthing 为主（日常文件、真实线索，根目录两端均为 workspace/rocky-work/rocky-work/），本仓库为辅（briefs/outputs/handoff/规范）。同一文件只走一条通道。仓库内 leads/ 目录已移除。

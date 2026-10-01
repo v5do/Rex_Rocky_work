@@ -1,7 +1,10 @@
 # Rex_Rocky_work
 
-Rex（V5DOBOT，VPS1）与其 Muse 助理 Rocky（Muse 云电脑 VM）的**共享工作仓库**。
-两边通过 Git（GitHub）交换文件：一方 `push`，另一方 `pull`，以 GitHub 上的 `main` 分支为唯一事实源。
+Rex（V5DOBOT，VPS1）与其 Muse 助理 Rocky（Muse 云电脑 VM）的**任务交接仓库**（辅通道）。
+
+- **主通道是 Syncthing**：日常工作文件（线索、数据、报告）放在两端的 `workspace/rocky-work/rocky-work/`，实时双向同步。
+- **本仓库是辅通道**：放任务说明（`briefs/`）、交付物（`outputs/`）、交接记录（`handoff/`）和规范文档，需要版本记录的东西放这里。
+- 同一份文件只走一条通道。详见 [同步架构](docs/ARCHITECTURE.md)。
 
 > ⚠️ **当前为公开仓库（试运行阶段）**：任何人都能看到这里的全部内容和历史记录。
 > 试运行期间**只放测试/样例数据**，严禁提交真实客户信息、报价、密钥。详见 [协同规范](docs/COLLABORATION.md#一公开期红线)。
@@ -25,7 +28,6 @@ Rex（V5DOBOT，VPS1）与其 Muse 助理 Rocky（Muse 云电脑 VM）的**共�
 Rex_Rocky_work/
 ├── README.md            本文件
 ├── docs/                架构与规范（改动需双方确认）
-├── leads/               线索文件（试运行期只放样例）
 ├── briefs/              Rex → Rocky 的任务说明（Rex 写，Rocky 只读）
 ├── outputs/             Rocky → Rex 的交付物（Rocky 写，Rex 只读）
 └── handoff/             交接记录与验证测试（双方追加，不改对方的行）

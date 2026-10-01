@@ -1,64 +1,76 @@
-# 同步架构
+# 同步架构（2026-10-01 定稿：Syncthing 为主，GitHub 为辅）
 
 ## 1. 总览
 
 ```
-┌──────────────────────────┐        git push / pull        ┌──────────────────────────┐
-│ VPS1（Rex / V5DOBOT）     │ ───────────────►  GitHub  ◄─── │ Muse 云电脑 VM（Rocky）   │
-│ /root/workspace/          │      HTTPS / SSH       main    │ ~/workspace/             │
-│   Rex_Rocky_work/  (clone)│ ◄───────────────               │   Rex_Rocky_work/ (clone)│
-└──────────────────────────┘                                 └──────────────────────────┘
-              ▲                                                            ▲
-              └────── 唯一事实源：github.com/v5do/Rex_Rocky_work 的 main 分支 ──┘
+                    ┌──────────── 主通道：Syncthing（实时、私有、点对点）────────────┐
+                    │                                                              │
+┌───────────────────┴──────────┐   TLS1.3 · VM 经出口代理 CONNECT    ┌─────────────┴──────────────┐
+│ VPS1（Rex / V5DOBOT）         │ ◄──────────────────────────────────► │ Muse 云电脑 VM（Rocky）     │
+│ /root/workspace/rocky-work/  │        文件夹 ID: rocky-work         │ ~/workspace/rocky-work/    │
+│   rocky-work/   ← 同步根      │                                      │   rocky-work/   ← 同步根    │
+│                              │                                      │                            │
+│ /root/workspace/             │       辅通道：Git（异步、有版本）      │ ~/workspace/               │
+│   Rex_Rocky_work/  (clone) ──┼──── push/pull ──► GitHub ◄── pull/push┼── Rex_Rocky_work/ (clone)  │
+└──────────────────────────────┘     v5do/Rex_Rocky_work · main       └────────────────────────────┘
 ```
 
-- **没有直连**：VPS1 与 VM 之间不需要能互相访问，只要各自能访问 GitHub。
-  VM 走 Cloudflare WARP 出网，IP 会变；Git 方案不受影响。
-- **异步交换**：一方提交并推送后，另一方下一次 `pull` 时拿到。不是实时同步。
-- **每次变更有记录**：谁、什么时候、改了什么，都能在 `git log` 里查到，可回滚。
+两条通道**各管各的文件，同一份文件只走一条通道**。
 
-## 2. 为什么从 Syncthing 改为 Git
+| | 主通道：Syncthing | 辅通道：GitHub 仓库（本仓库） |
+|---|---|---|
+| 放什么 | 日常工作文件：线索（`leads/`）、数据、分析报告、草稿 | 任务交接：`briefs/`、`outputs/`、`handoff/`；需要版本记录的规范文档 |
+| 同步方式 | 实时、自动、双向 | 手动 `commit` + `push`，对方 `pull` |
+| 数据路径 | 两台机器点对点，不经第三方存储 | 经过 GitHub |
+| 敏感数据 | ✅ 可以放（私有通道） | ❌ 公开期严禁；转私有后也只放必要内容 |
+| 版本/追溯 | 只有 `.stversions` 旧版本 | 完整 `git log`，可回滚 |
 
-此前两边用 Syncthing 同步 `rocky-work` 文件夹，2026-09-30 核查发现：
+## 2. 主通道：Syncthing
 
-| 问题 | 详情 |
-|---|---|
-| 两端根目录差一层 | VPS1 根 = `/root/workspace/rocky-work/rocky-work/`，VM 根 = `~/workspace/rocky-work/`。双方都写 `…/rocky-work/rocky-work/leads/`，实际落到对方的位置不一样，看起来就是“没同步”。 |
-| 连接会断且不自愈 | VM 端 2026-09-29 17:06 断开后一直未重连（VM 休眠/重启后 Syncthing 未自启），期间两边各写各的。 |
-| 无版本记录 | 冲突时生成 `.sync-conflict` 文件，无法知道谁改了什么。 |
+| | VPS1（Rex） | VM（Rocky） |
+|---|---|---|
+| 同步根目录 | `/root/workspace/rocky-work/rocky-work/` | `~/workspace/rocky-work/rocky-work/` |
+| 常驻方式 | syncthing 进程（Rex 维护） | systemd `syncthing-rocky.service`，开机自启 |
+| 出网 | 公网直接监听 22000 | VM 沙箱拦截直连出站，Syncthing 通过 `ALL_PROXY` 走出口代理 CONNECT 到 VPS1:22000 |
 
-Git 方案中，路径永远是**相对仓库根目录**的（`leads/xxx.md` 在两边都是同一个文件），不存在层级错位。
+**两端根目录同构**：同一个文件在两边的绝对路径后半段完全一致，例如
+`…/rocky-work/rocky-work/leads/xxx.json`。2026-10-01 已用测试文件验证落点正确。
 
-## 3. 与 Syncthing 的关系（重要）
+### 历史问题（已修复，留作排障参考）
 
-- **仓库克隆目录不能放在 Syncthing 同步目录里面。** `.git` 被 Syncthing 双向同步会损坏仓库。
-  所以克隆到 `~/workspace/Rex_Rocky_work`，与旧的 `~/workspace/rocky-work` 并列，而不是放进去。
-- 试运行期间 Syncthing 可以继续保留，但**同一份文件只走一条通道**：凡是放进本仓库的文件，不再放进 `rocky-work`。
-- 方案确认后，停用 `rocky-work` 的 Syncthing 共享，把仍需要的文件迁入本仓库。
+| 时间 | 问题 | 处理 |
+|---|---|---|
+| 09-29 ~ 10-01 | 两端根目录差一层（VM 根在 `~/workspace/rocky-work/`），双方写的路径落点不一致 | VM 根目录改为 `~/workspace/rocky-work/rocky-work/`，与 VPS1 同构 |
+| 09-29 17:06 起 | VM 断线约 40 小时未恢复 | 根因是 VM 出站 TCP 被沙箱拦截；自建 Python 中转桥与 Syncthing v2 的 reuse-port 拨号冲突导致回包错乱。改用 Syncthing 原生代理支持，并用 systemd 常驻 |
+| 10-01 | VPS1 同步根目录上一层残留旧的 `.stfolder` 与测试文件 | 已清理。注意 VPS1 Syncthing 的**新建文件夹默认路径**仍是 `/root/workspace/rocky-work`，若重新添加文件夹，需手动改成 `…/rocky-work/rocky-work` |
+
+### 排障速查
+
+- 在 VPS1 上看连接：`curl -s -H "X-API-Key: <key>" http://127.0.0.1:8384/rest/system/connections`，Rocky VM 的 `connected` 应为 `true`。
+- 文件没过来：先看两端是否连接，再确认文件在**同步根目录之内**（根目录之外的文件不会同步）。
+- 出现 `*.sync-conflict-*` 文件：说明两边同时改了同一个文件，人工合并后删除冲突副本。
+
+## 3. 辅通道：GitHub 仓库
+
+- 唯一事实源：`github.com/v5do/Rex_Rocky_work` 的 `main` 分支。
+- 克隆位置：VPS1 `/root/workspace/Rex_Rocky_work`，VM `~/workspace/Rex_Rocky_work`。
+- **仓库克隆目录绝不能放在 Syncthing 同步根目录里**，否则 `.git` 会被双向同步而损坏。两者在 `workspace/` 下并列。
+- 可选：定时只拉不推。
+  ```bash
+  */5 * * * * cd ~/workspace/Rex_Rocky_work && git pull --rebase --autostash -q >> ~/.rex_rocky_pull.log 2>&1
+  ```
 
 ## 4. 访问与认证
 
-| | 认证方式 | 要求 |
+| | Syncthing | GitHub |
 |---|---|---|
-| Rex（VPS1） | v5do 账号的 fine-grained PAT 或 SSH 密钥 | 只授权本仓库 `Contents: Read and write` |
-| Rocky（VM） | 单独一个 fine-grained PAT（仅本仓库）或 Deploy key（勾选 write） | 不与 Rex 共用凭证，方便单独吊销 |
+| Rex（VPS1） | 设备 ID 配对 | 只授权本仓库的 fine-grained token（`Contents: Read and write`） |
+| Rocky（VM） | 设备 ID 配对；代理凭据只在 service 文件里，权限 600 | 单独一个 fine-grained token，不与 Rex 共用 |
 
-- 凭证只存放在各自机器的 git credential helper / `~/.ssh` 中，**绝不写进仓库文件、提交信息、日报或聊天记录**。
-- 改为私有库后公开访问失效，以上凭证继续有效（前提是 PAT 授权了该仓库）。
+凭证只放在各自机器的配置 / git credential 中，**不写进任何同步文件、仓库、日报或聊天**。
 
-## 5. 自动拉取（可选）
+## 5. 改为私有库
 
-为让对方的更新尽快可见，可各自加一个定时拉取，只拉不推：
-
-```bash
-# 每 5 分钟拉取一次；有本地未提交修改时 rebase 会安全失败，不会覆盖本地文件
-*/5 * * * * cd ~/workspace/Rex_Rocky_work && git pull --rebase --autostash -q >> ~/.rex_rocky_pull.log 2>&1
-```
-
-**不要自动 `commit`/`push`**：只在一项工作完成、自查无敏感信息后，手动提交推送。
-
-## 6. 改为私有库的步骤
-
-1. GitHub → Settings → General → Danger Zone → Change visibility → Private。
-2. 双方各执行一次 `git pull` / `git push`，确认凭证仍可用。
-3. 公开期间推送过的内容视为已公开：若误传过敏感信息，**删文件不够**，需要轮换相关密钥/密码，并评估客户信息外泄影响。
+1. GitHub → Settings → General → Change visibility → Private。
+2. 双方各 `git pull` / `git push` 一次，确认凭证可用。
+3. 公开期间推送过的内容视为已公开；误传过敏感信息需要轮换相关凭证，删除文件不够。

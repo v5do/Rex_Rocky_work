@@ -1,10 +1,12 @@
 # 协同规范与注意点（Rex × Rocky）
 
+> 通道分工：日常工作文件走 **Syncthing**（`rocky-work/rocky-work/`），任务交接与规范走**本仓库**。同一份文件只走一条通道。
+
 ## 一、公开期红线
 
 仓库当前**公开**，推送即公开，历史记录永久保留（删除文件也能从历史里找回）。改为私有前：
 
-1. ❌ 不放真实客户的姓名、公司、邮箱、电话、WhatsApp、地址。线索文件用样例数据，例如 `Customer A / example.com / +00 000`。
+1. ❌ 不放真实客户的姓名、公司、邮箱、电话、WhatsApp、地址。**真实线索一律走 Syncthing 的 `leads/`，不进本仓库**；brief/output 里需要举例时用 `Customer A / example.com`。
 2. ❌ 不放报价、成本、毛利、订单金额、合同、发票。
 3. ❌ 不放任何 API key、token、密码、cookie、`.env`、私钥、配置文件。
 4. ❌ 不放内部 IP、服务器地址、内部系统账号。
@@ -18,7 +20,7 @@
 |---|---|---|---|
 | `briefs/` | Rex | Rocky | 任务说明，一个任务一个文件：`YYYYMMDD-任务简称.md` |
 | `outputs/` | Rocky | Rex | 交付物，文件名与对应 brief 一致，加后缀：`YYYYMMDD-任务简称-v1.md` |
-| `leads/` | 双方 | 双方 | 一条线索/一批线索一个文件，**不要两人同时改同一个文件** |
+| （线索） | — | — | 真实线索放 Syncthing `rocky-work/rocky-work/leads/`，不放本仓库 |
 | `handoff/HANDOFF.md` | 双方 | 双方 | 只在末尾**追加**，不修改、不删除对方写的行 |
 | `docs/` | 双方协商 | 双方 | 改动前先在 HANDOFF 里说明 |
 
@@ -63,7 +65,15 @@ git diff --cached | grep -nEi 'api[_-]?key|token|secret|passw|密码|sk-[a-z0-9]
 [Rocky] 修订：按 Rex 意见补充联系渠道字段
 ```
 
-## 七、试运行验证步骤
+## 七、Syncthing 主通道注意点
+
+1. 只在同步根目录 `…/rocky-work/rocky-work/` 之内放文件，根目录之外的不会同步。
+2. 两人不要同时编辑同一个文件；需要协作的文件按“一人一份 + 合并”处理，避免产生 `*.sync-conflict-*`。
+3. 大文件（>50MB）、临时文件不要放进同步目录。
+4. 删除会同步到对方：删别人的文件前先在 HANDOFF 里说明。
+5. 发现对方文件迟迟不到：先查连接状态（见 ARCHITECTURE 第 2 节排障速查），不要重复拷贝。
+
+## 八、试运行验证步骤（GitHub 辅通道）
 
 1. Rex：在 `handoff/HANDOFF.md` 追加 “Rex → Rocky 测试”，提交推送。
 2. Rocky：`git pull --rebase`，确认能看到这一行，在其下追加回复，提交推送。
