@@ -6,10 +6,11 @@
 > 不需要同步软件、不需要在云电脑上配凭证，复用已打通的 muse 通道（含 Cookie 自动续期）。
 > 单次请求上限约 45KB，工具自动按 32KB 分块；速度约 0.1MB/s，>20MB 走本仓库。规范见团队技能 `muse-exchange`。
 >
-> **Rex ↔ Rocky 过渡说明**：Rocky 要求本人确认后才切换渠道（安全规则），确认前继续使用下文的 Syncthing；
-> 确认后 Syncthing 停用，本仓库保留为大文件与需要版本记录的交付物通道。
+> **Rex ↔ Rocky 已切换（2026-10-03）**：CEO 与 Rocky 本人确认后，Rocky 已采用 v5-exchange，Rex→Rocky 往返验收通过。
+> Syncthing 已停用（VPS1 端已停止、无自启；`rocky-work/rocky-work/` 下的历史文件保留可查阅）。
+> 本仓库保留为 >20MB 大文件与需要版本记录的交付物通道。
 
-## 附：2026-10-01 方案（Syncthing 为主，GitHub 为辅）——过渡期保留
+## 附：2026-10-01 方案（Syncthing 为主，GitHub 为辅）——已于 2026-10-03 停用，留作历史参考
 
 ## 1. 总览
 
