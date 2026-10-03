@@ -1,4 +1,15 @@
-# 同步架构（2026-10-01 定稿：Syncthing 为主，GitHub 为辅）
+# 同步架构
+
+> **2026-10-03 更新：全团统一改用「Muse 文件交换」为主通道。**
+> 本地 Agent 通过 muse 工具（`muse_put / muse_list / muse_get / muse_delete`）直接读写助理云电脑工作区
+> `workspace/v5-exchange/{inbox,outbox,archive}`：inbox = Rex → Rocky，outbox = Rocky → Rex。
+> 不需要同步软件、不需要在云电脑上配凭证，复用已打通的 muse 通道（含 Cookie 自动续期）。
+> 单次请求上限约 45KB，工具自动按 32KB 分块；速度约 0.1MB/s，>20MB 走本仓库。规范见团队技能 `muse-exchange`。
+>
+> **Rex ↔ Rocky 过渡说明**：Rocky 要求本人确认后才切换渠道（安全规则），确认前继续使用下文的 Syncthing；
+> 确认后 Syncthing 停用，本仓库保留为大文件与需要版本记录的交付物通道。
+
+## 附：2026-10-01 方案（Syncthing 为主，GitHub 为辅）——过渡期保留
 
 ## 1. 总览
 
